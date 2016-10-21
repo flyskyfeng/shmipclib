@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <pthread.h>
+#include <xmmintrin.h>
 
 /**
  * A shared memory segment. Represents a memory blob that can be mapped
@@ -197,7 +198,8 @@ public:
      * holding the lock already; will deadlock in that case.)
      */
     void lock() {
-        pthread_spin_lock((pthread_spinlock_t *)p);
+//        pthread_spin_lock((pthread_spinlock_t *)p);
+
 //      asm volatile
 //          (
 //          // test-and-test-and-set
@@ -210,6 +212,10 @@ public:
 //          "   jnz 1b\n"
 //          :: "a" (p) : "%rcx",
 //          "%rdx");
+
+        while(!__sync_bool_compare_and_swap(p, 0, 1)) {
+            while(*p) _mm_pause();
+        }
     }
 
     /**
@@ -218,7 +224,9 @@ public:
      */
     void unlock() {
         /**p = 0;*/
-        pthread_spin_unlock((pthread_spinlock_t *)p);
+        // pthread_spin_unlock((pthread_spinlock_t *)p);
+        asm volatile (""); // acts as a memory barrier.
+        *p = 0;
     }
 };
 
